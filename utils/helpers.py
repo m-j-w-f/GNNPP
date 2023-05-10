@@ -1,4 +1,5 @@
 import pandas as pd
+import math
 import os
 def  load_data(indexed:bool = True) -> pd.DataFrame:
     """
@@ -9,6 +10,7 @@ def  load_data(indexed:bool = True) -> pd.DataFrame:
     df = pd.read_feather(path)
     df.station = pd.to_numeric(df.station, downcast='integer') - 1 # convert station to integer and subtract 1 to make it 0-based
     df = df.sort_values(by=['date','station']) # sort by date and station
+    df["doy"] = df["date"].apply(lambda x: math.sin(((x.day_of_year-105)/366)*2*math.pi)) # Sin transformed day of year
     if indexed:
         df.index = df.date # add DatetimeIndex
         df.index = df.index.tz_convert(None) # remove timezone

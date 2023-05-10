@@ -4,3 +4,4 @@ plots/
 pdfs/
 .DS_Store
 data_RL18.feather
+colab_push.ipynb

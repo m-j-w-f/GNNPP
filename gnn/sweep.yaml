@@ -1,0 +1,56 @@
+program: sweep.ipynb
+method: random
+metric:
+  goal: minimize
+  name: best_val_loss
+parameters:
+  batch_size:
+    values:
+      - 8
+      - 16
+      - 32
+    distribution: categorical
+  embed_dim:
+    min: 1
+    max: 10
+    distribution: int_uniform
+  heads:
+    min: 1
+    max: 16
+    distribution: int_uniform
+  hidden_channels:
+    min: 1
+    max: 32
+    distribution: int_uniform
+  learning_rate:
+    min: 0.001
+    max: 0.005
+    distribution: uniform
+  linear_size:
+    values:
+      - 32
+      - 64
+      - 128
+      - 265
+      - 512
+      - 1024
+    distribution: categorical
+  max_dist:
+    min: 25
+    max: 250
+    distribution: int_uniform
+  max_epochs:
+    value: 250
+    distribution: constant
+  num_layers:
+    min: 1
+    max: 5
+    distribution: int_uniform
+  patience:
+    value: 30
+    distribution: constant
+  type:
+    values:
+      - GATConvv2
+      - ResGNNv2
+    distribution: categorical

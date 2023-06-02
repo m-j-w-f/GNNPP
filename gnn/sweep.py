@@ -301,6 +301,9 @@ def train_model():
             if no_improvement == config.patience:
                 print('Early stopping.')
                 break
+            if best_val_loss >= 0.95 and epoch >= 50:
+                print('Early stopping, poor performance.')
+                break
         
         # Load weights from model checkpoint
         checkpoint = torch.load("checkpoint.pt")

@@ -15,6 +15,7 @@ import os
 import pandas as pd
 import pandas as pd
 import torch
+from typing import List
 
 
 def  load_data(indexed:bool = True) -> pd.DataFrame:
@@ -70,14 +71,20 @@ def clean_data(df: pd.DataFrame, max_missing: int = 121, max_alt: float = 1000.0
     return df
 
 
-def normalize_data(df: pd.DataFrame, last_obs: int) -> pd.DataFrame:
-    # Normalize the df
-    exclude_cols = ['date', 'obs', 'station','doy']
+def normalize_data(df: pd.DataFrame, last_obs: int, method: str=None) -> pd.DataFrame:
     # normalize the DataFrame, excluding the columns to exclude
+    exclude_cols = ['date', 'obs', 'station','doy']
     normalized_data = df.copy()  # create a copy of the original DataFrame to avoid modifying it directly
-    for col in df.columns:
-        if col not in exclude_cols:
-            normalized_data[col] = (df[col] - df[col][:last_obs].mean()) / df[col][:last_obs].std()
+    if method == None or method == 'normal':
+        for col in df.columns:
+            if col not in exclude_cols:
+                normalized_data[col] = (df[col] - df[col][:last_obs].mean()) / df[col][:last_obs].std()
+    
+    if method == 'max':
+        for col in df.columns:
+            if col not in exclude_cols:
+                normalized_data[col] = df[col] / df[col][:last_obs].max()
+    
     return normalized_data
 
 
@@ -170,7 +177,7 @@ def create_data(df: pd.DataFrame, date: pd.Timestamp, mask: np.array, dist_matri
     return df
 
 
-def visualize_graph(d: Data, df: pd.DataFrame, last_obs: int):
+def visualize_graph(d: Data, df: pd.DataFrame, last_obs: int, rescaling_method: str = 'std'):
     """Visualize the Generated Data as a graph
 
     Args:
@@ -182,11 +189,16 @@ def visualize_graph(d: Data, df: pd.DataFrame, last_obs: int):
     pos =  d.x[:,-5:-3].detach().numpy() # TODO this does not work if new features are added (add dict featureToIndex)
     pos = np.transpose([pos[:, 1], pos[:, 0]]) # Switch latitude and longitude
     # Rescale lat and long
-    fac_lat = df["lat"][:last_obs].std()
-    fac_lon = df["lon"][:last_obs].std()
-    mean_lat = df["lat"][:last_obs].mean()
-    mean_lon = df["lon"][:last_obs].mean()
-    pos = pos * np.array([fac_lon, fac_lat]) + np.array([mean_lon, mean_lat])
+    if rescaling_method == 'std':
+        fac_lat = df["lat"][:last_obs].std()
+        fac_lon = df["lon"][:last_obs].std()
+        mean_lat = df["lat"][:last_obs].mean()
+        mean_lon = df["lon"][:last_obs].mean()
+        pos = pos * np.array([fac_lon, fac_lat]) + np.array([mean_lon, mean_lat])
+    else:
+        fac_lat = df["lat"][:last_obs].max()
+        fac_lon = df["lon"][:last_obs].max()
+        pos = pos * np.array([fac_lon, fac_lat])
 
     dict_pos = {i: p.tolist() for i, p in enumerate(pos)}
 

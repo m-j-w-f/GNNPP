@@ -5,6 +5,7 @@ Files in this folder are used to perform experiments with GNNs to evaluate which
 ## 🚧 Current TODOs
 
 - [ ] How to construct the Graph: Test different Methods
+  - [ ] Use a per node model that operates on a small subgraph of nodes and predicts temperatures for one model only
 - [ ] What about Stations that are far outside (isolated Nodes)?
 - [x] Modularize -> use multiple torch.modules in a Sequential model
 - [x] Early stopping should save model checkpoint

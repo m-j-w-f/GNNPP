@@ -126,15 +126,41 @@ def compute_dist_matrix(df: pd.DataFrame) -> np.array:
     return distance_matrix
 
 
-def create_data(df: pd.DataFrame, date: pd.Timestamp, mask: np.array, dist_matrix: np.array) -> Data:
+def get_mask(dist_matrix_sliced: np.array, method: str = "max_dist", k: int=3, max_dist: int=50):
+    """
+    Generate mask which specifies which edges to include in the graph
+    :param dist_matrix_sliced: distance matrix with only the reporting stations
+    :param method: method to compute included edges. max_dist includes all edges wich are shorter than max_dist km,
+    k_nearest includes the k nearest edges for each station. So the out_degree of each station is k, the in_degree can vary.
+    :param k: number of connections per node
+    :param max_dist: maximum lengh of edges
+    :return: return boolean mask of which edges to include
+    """
+    mask = None
+    if method == "max_dist":
+        mask = (dist_matrix_sliced <= max_dist) & (dist_matrix_sliced != 0)
+    elif method == 'nearest_k':
+        nearest_indices = np.argsort(dist_matrix_sliced, axis=1)[:, 1:+k]
+        # Create an empty boolean array with the same shape as distances
+        nearest_k = np.zeros_like(dist_matrix_sliced, dtype=bool)
+        # Set the corresponding indices in the nearest_k array to True
+        row_indices = np.arange(dist_matrix_sliced.shape[0])[:, np.newaxis]
+        nearest_k[row_indices, nearest_indices] = True
+        mask = nearest_k
+
+    return mask
+
+
+def create_data(df: pd.DataFrame, date: pd.Timestamp, dist_matrix: np.array, **kwargs) -> Data:
     """
     Create a PyTorch Geometric Data object from a given date.
 
     Args:
         df (pd.DataFrame): dataframe with stations and observations
         date (pd.Timestamp): date to create data for
-        mask (np.array): Boolean array that represents the edges with distance less than max_dist
         dist_matrix (np.array): distance matrix between stations
+        **kwargs: Arguments are passed to geet_mask. These arguments include method (can be max_dist or k_nearest),
+        k, max_dist
 
 
     Returns:
@@ -151,14 +177,16 @@ def create_data(df: pd.DataFrame, date: pd.Timestamp, mask: np.array, dist_matri
     # Create feature tensor (stations are orderd in the df)
     node_features = df.drop(['date', 'obs'], axis=1).to_numpy()
     x = torch.tensor(node_features, dtype=torch.float)
-    
+
     # Create target tensor
     target = df['obs'].to_numpy()
     y = torch.tensor(target, dtype=torch.float)
 
     # Create a pairwise distance matrix (omit non reporting stations)
     mesh = np.ix_(reporting_stations, reporting_stations)
-    mask_sliced = mask[mesh]
+    dist_matrix_sliced = dist_matrix[mesh]
+    mask = get_mask(dist_matrix_sliced=dist_matrix_sliced, **kwargs)
+    mask_sliced = mask  # already sliced
 
     # Get the indices of the edges to include
     edges = np.argwhere(mask_sliced)
@@ -166,7 +194,7 @@ def create_data(df: pd.DataFrame, date: pd.Timestamp, mask: np.array, dist_matri
 
     edge_index = torch.tensor(edges, dtype=torch.int64)
     assert edge_index.shape[0] == 2
-    
+
     # Create edge_attr tensor
     dist_matrix_sliced = dist_matrix[mesh]
     edge_attr = dist_matrix_sliced[edges[0], edges[1]]
@@ -189,51 +217,78 @@ def plot_map():
     return ax
 
 
-def visualize_graph(d: Data, df: pd.DataFrame, last_obs: int, rescaling_method: str = 'std'):
+def visualize_graph(d: Data, stations: pd.DataFrame):
     """Visualize the Generated Data as a graph
 
     Args:
         d (Data): torch_geometric data object
-        df (pd.DataFrame): dataframe used to construct the torch data
-        last_obs (int): last observation used in normalizing the data to rescale it here
-        rescaling_method (str): method used to rescale the positions of the nodes since they are altered by normalization
+        stations (pd.DataFrame): dataframe used to construct the torch data
     """
-    G = to_networkx(d, to_undirected=True)
-    pos = d.x[:,-5:-3].detach().numpy() # TODO this does not work if new features are added (add dict featureToIndex)
-    pos = np.transpose([pos[:, 1], pos[:, 0]]) # Switch latitude and longitude
-    # Rescale lat and long
-    if rescaling_method == 'std':
-        fac_lat = df["lat"][:last_obs].std()
-        fac_lon = df["lon"][:last_obs].std()
-        mean_lat = df["lat"][:last_obs].mean()
-        mean_lon = df["lon"][:last_obs].mean()
-        pos = pos * np.array([fac_lon, fac_lat]) + np.array([mean_lon, mean_lat])
+    if d.is_directed():
+        G = nx.DiGraph()
     else:
-        fac_lat = df["lat"][:last_obs].max()
-        fac_lon = df["lon"][:last_obs].max()
-        pos = pos * np.array([fac_lon, fac_lat])
+        G = nx.Graph()
+    # Holds the Station_ids like in stations DataFrame
+    station_ids = np.array(d.x[..., 0].cpu(), dtype=int)
 
-    dict_pos = {i: p.tolist() for i, p in enumerate(pos)}
+    # to cpu for further calculations and plotting
+    edge_index, dist = d.edge_index.cpu().numpy(), d.edge_attr.cpu().numpy()
 
-    # Plot map
-    proj = ccrs.PlateCarree()
-    fig = plt.figure(figsize=(8, 6))
-    ax = plot_map()
+    # NOTE: edge_index_att holds the Edges of the new graph, however they are labeled consecutively instead of the ordering from stations DataFrame
+    edge_index = station_ids[edge_index]  # now the same indexes as in the stations Dataframe are used
+    # Filter latitude and longitude using station IDs
+    stations_cut = stations[stations['station'].isin(station_ids)]
+
+    # Add nodes (stations) to the graph
+    for station in stations_cut.itertuples():
+        G.add_node(station.station, lat=station.lat, lon=station.lon)  # Add station with ID, LAT and LON
+
+    pos = {node: (data['lon'], data['lat']) for node, data in
+           G.nodes(data=True)}  # Create A Positions Dict for every node
+
+    # Add edges with edge_length as an attribute
+    if d.is_directed():
+        for edge, a in zip(edge_index.T.tolist(), dist.flatten().tolist()):  # Add all edges
+            G.add_edge(edge[0], edge[1], length=a)  # Add all Edges with distance Attribute
+    else:
+        for edge, a in zip(edge_index.T.tolist(), dist.flatten().tolist()):
+            if not (G.has_edge(edge[0], edge[1]) or G.has_edge(edge[1], edge[0])): # Edge only needs to be added once
+                G.add_edge(edge[0], edge[1], length=a)  # Add all Edges with distance Attribute
 
     # Colors
-    color_mask = np.isin(d.edge_index.numpy().T, np.array(G.edges)).all(axis=1)
-    color_values = d.edge_attr.flatten()[color_mask]
+    degrees = G.degree() if d.is_undirected() else G.in_degree()
 
-    cmap = mpl.colormaps.get_cmap('Greens_r')
+    node_colors = [deg for _, deg in degrees]
+    cmap_nodes = plt.get_cmap('jet', max(node_colors) - min(node_colors) + 1)
+    norm = plt.Normalize(min(node_colors), max(node_colors))
+    colors_n = [cmap_nodes(norm(value)) for value in node_colors]
+    sm_nodes = plt.cm.ScalarMappable(cmap=cmap_nodes, norm=norm)
+
+    # Edge Colors
+    color_values = [attr['length'] for _, _, attr in G.edges(data=True)]
+    cmap = mpl.colormaps.get_cmap('Blues_r')
     # Normalize the values to range between 0 and 1
     norm = plt.Normalize(min(color_values), max(color_values))
     # Generate a list of colors based on the normalized values
     colors = [cmap(norm(value)) for value in color_values]
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-    plt.colorbar(sm, ax=ax)
+
+    # Plot map
+    ax = plot_map()
+
+    # Colorbar Node degrees
+    colorbar = plt.colorbar(sm_nodes, ax=ax)
+    ticks_pos = np.linspace(min(node_colors) + 1, max(node_colors), max(node_colors) - min(node_colors) + 1) - 0.5
+    colorbar.set_ticks(ticks_pos)
+    ticks = np.arange(min(node_colors), max(node_colors) + 1)
+    colorbar.set_ticklabels(ticks)
+    colorbar.ax.set_ylabel(f'Node{"_in" if d.is_directed() else ""} Degree', rotation=270, labelpad=20)
+    # Colormap for Edges
+    colorbar_e = plt.colorbar(sm, ax=ax)
+    colorbar_e.ax.set_ylabel('Distance in km', rotation=270, labelpad=20)
 
     # Plot Graph
-    nx.draw_networkx(G, pos=dict_pos, node_size=10, node_color="black", ax=ax, with_labels=False, edge_color=colors)
+    nx.draw_networkx(G, pos=pos, node_size=20, node_color=colors_n, ax=ax, with_labels=False, edge_color=colors, edgecolors="black")
 
     # Fix the aspect ratio of the map
     lat_center = (ax.get_extent()[2] + ax.get_extent()[3]) / 2

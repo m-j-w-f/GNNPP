@@ -7,3 +7,4 @@ pdfs/
 data_RL18.feather
 wandb/
 checkpoint.pt
+checkpoints/

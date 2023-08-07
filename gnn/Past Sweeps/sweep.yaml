@@ -1,0 +1,45 @@
+method: bayes
+metric:
+  goal: minimize
+  name: best_val_loss
+parameters:
+  batch_size:
+    value: 8
+  embed_dim:
+    values:
+      - 2
+      - 10
+  heads:
+    values:
+      - 1
+      - 4
+      - 8
+      - 16
+  hidden_channels:
+    values:
+      - 1
+      - 8
+      - 16
+      - 32
+  learning_rate:
+    value: 0.002
+  max_dist:
+    values:
+      - 25
+      - 75
+      - 200
+  max_epochs:
+    value: 150
+  num_layers:
+    values:
+      - 1
+      - 2
+      - 3
+      - 4
+  patience:
+    value: 25
+  type:
+    values:
+      - GATConvv2
+      - ResGNNv2
+program: sweep.py

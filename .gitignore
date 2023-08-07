@@ -1,6 +1,9 @@
 .idea/
 __pycache__/
+.ipynb_checkpoints/
 plots/
 pdfs/
 .DS_Store
 data_RL18.feather
+wandb/
+gnn/checkpoints/

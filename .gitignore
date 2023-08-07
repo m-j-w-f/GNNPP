@@ -6,5 +6,4 @@ pdfs/
 .DS_Store
 data_RL18.feather
 wandb/
-checkpoint.pt
-checkpoints/
+gnn/checkpoints/

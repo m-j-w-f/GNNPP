@@ -356,7 +356,7 @@ def visualize_graph(d: Data) -> None:
     ax.set_aspect(1 / np.cos(np.radians(lat_center)))
 
     ax.set_title("Active weather stations in Germany")
-
+    plt.savefig("stations.eps", format="eps")
     plt.show()
 
 

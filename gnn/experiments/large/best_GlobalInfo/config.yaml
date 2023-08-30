@@ -1,0 +1,20 @@
+data:
+  method: "nearest_k"
+  max_dist: 0
+  nearest_k: 10
+  nearest_k_mode: "in"
+  use_corr: False
+
+model:
+  architecture: "GNNGI"
+  num_layers: 3
+  batch_size: 8
+  embed_dim: 10
+  hidden_channels: 128
+  heads: 0
+  compile: False
+  lr: 0.0025
+
+training:
+  n_epochs: 82
+  patience: 82

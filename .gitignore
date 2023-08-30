@@ -7,3 +7,7 @@ pdfs/
 data_RL18.feather
 wandb/
 gnn/checkpoints/
+*.eps
+*.pt
+*.npy
+*.feather

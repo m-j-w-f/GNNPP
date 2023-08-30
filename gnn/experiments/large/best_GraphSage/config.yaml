@@ -1,0 +1,20 @@
+data:
+  method: "max_dist"
+  max_dist: 200
+  nearest_k: 0
+  nearest_k_mode: "in"
+  use_corr: False
+
+model:
+  architecture: "GraphSAGE"
+  num_layers: 2
+  batch_size: 8
+  embed_dim: 5
+  hidden_channels: 64
+  heads: 0
+  compile: True
+  lr: 0.001
+
+training:
+  n_epochs: 95
+  patience: 95

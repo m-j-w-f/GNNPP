@@ -339,7 +339,7 @@ def create_model(layer_type: str,
 
 def train_model(config):
     # !Fixed parameters not varied in this run
-    n_epochs = 150
+    n_epochs = 500  # max number of epochs
     patience = 30
     n_reps = 1
     lr = 0.0025 if config.model != 'GlobalInfo' else 0.001
@@ -425,7 +425,7 @@ def train_model(config):
 
 
 if __name__ == '__main__':
-
+    small = True  # !TODO change here if the small or big dataset is used
     with wandb.init():
         # Set Device
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -438,10 +438,19 @@ if __name__ == '__main__':
         # Clean Data
         print("Cleaning Data ...")
         data = clean_data(data, max_missing=121, max_alt=1000.0)
+
+        # Cut Dataset to only 2015 and 2016 (2016 wont be used anyway)
+        if small:
+            data = data[data.date.dt.year >= 2015]
+            data = data[data.date.dt.year < 2016]
+        else:
+            # Cut data to 2007-2015
+            data = data[data.date.dt.year < 2016]
+
         # Normalize Data
         print("Normalizing Data ...")
         # last_obs is -365 since the last year is used for testing
-        normalized_data = normalize_data(data, last_obs=-365, method="max")
+        normalized_data = normalize_data(data, last_obs=-1, method="max")
 
         # Get List of stations with all stations -> will break further code if cut already
         print("Extracting Stations ...")
@@ -477,12 +486,16 @@ if __name__ == '__main__':
         # !Define Batch Size
         BS = 8
         # Move all the data directly to the GPU (should fit into memory)
-        torch_data = [t.to(device) for t in torch_data[:-365]]
+        torch_data_train = [t.to(device) for t in torch_data]
         # shuffle data
-        random.shuffle(torch_data)
+        random.shuffle(torch_data_train)
         # Definition of train_loader and valid_loader
-        train_loader = DataLoader(torch_data[:-1460], batch_size=BS, shuffle=True)
-        valid_loader = DataLoader(torch_data[-1460:], batch_size=BS, shuffle=True)
+        if small:
+            train_loader = DataLoader(torch_data_train[:183], batch_size=BS, shuffle=True)
+            valid_loader = DataLoader(torch_data_train[183:], batch_size=BS, shuffle=True)
+        else:
+            train_loader = DataLoader(torch_data_train[:1899], batch_size=BS, shuffle=True)
+            valid_loader = DataLoader(torch_data_train[1899:], batch_size=BS, shuffle=True)
 
         # get feature length
         num_features = torch_data[0].num_features

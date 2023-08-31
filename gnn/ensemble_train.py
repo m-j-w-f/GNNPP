@@ -57,8 +57,8 @@ def create_model(config, emb_num_features):
 
 
 def crps(mu_sigma: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-    """Calculates the Continuous Ranked Probability Score (CRPS) assuming normally distributed df
-
+    """
+    Calculates the Continuous Ranked Probability Score (CRPS) assuming normally distributed df
     :param torch.Tensor mu_sigma: tensor of mean and standard deviation
     :param torch.Tensor y: observed df
 

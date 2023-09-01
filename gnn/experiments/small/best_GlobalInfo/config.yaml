@@ -6,7 +6,7 @@ data:
   use_corr: False
 
 model:
-  architecture: "GNNGI"
+  architecture: "GlobalInfo"
   num_layers: 1
   batch_size: 8
   embed_dim: 10

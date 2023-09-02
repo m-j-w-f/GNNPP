@@ -10,7 +10,7 @@ from torch_geometric.nn.pool import global_mean_pool
 from torch.nn import Linear, Embedding, ModuleList
 
 
-def crps(mu_sigma: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+def crps_no_avg(mu_sigma: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     """Calculates the Continuous Ranked Probability Score (CRPS) assuming normally distributed df
 
     :param torch.Tensor mu_sigma: tensor of mean and standard deviation
@@ -31,8 +31,20 @@ def crps(mu_sigma: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     cdf = 0.5 * (1 + torch.erf(omega / torch.sqrt(torch.tensor(2))))
 
     crps_score = sigma * (omega * (2 * cdf - 1) + 2 * pdf - 1 / torch.sqrt(torch.tensor(pi)))
-    return torch.mean(crps_score)
+    return crps_score
 
+
+def crps(mu_sigma: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    """Calculates the Continuous Ranked Probability Score (CRPS) assuming normally distributed df
+
+    :param torch.Tensor mu_sigma: tensor of mean and standard deviation
+    :param torch.Tensor y: observed df
+
+    :return tensor: CRPS value
+    :rtype torch.Tensor
+    """
+    crps_score = crps_no_avg(mu_sigma=mu_sigma, y=y)
+    return torch.mean(crps_score)
 
 class Convolution(torch.nn.Module):
     def __init__(self, in_channels, out_channels, hidden_channels, heads, num_layers: int = None):

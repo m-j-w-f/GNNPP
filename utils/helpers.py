@@ -289,7 +289,7 @@ def visualize_graph(d: Data) -> None:
 
     # NOTE: edge_index_att holds the Edges of the new graph,
     # however they are labeled consecutively instead of the ordering from stations DataFrame
-    station_ids = np.array(d.x[:,0])
+    station_ids = np.array(d.x[:, 0])
     edge_index = station_ids[edge_index]  # now the same indexes as in the stations Dataframe are used
 
     # Add nodes (stations) to the graph

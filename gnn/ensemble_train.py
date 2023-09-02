@@ -23,16 +23,16 @@ def create_model_from_config(config: dict, emb_num_features: int, device: torch.
     :return:
     """
     model, optimizer, scheduler = create_model(layer_type=config['model']['architecture'],
-                 embed_dim=config['model']['embed_dim'],
-                 in_channels=emb_num_features,
-                 hidden_channels=config['model']['hidden_channels'],
-                 num_layers=config['model']['num_layers'],
-                 lr=config['model']['lr'],
-                 heads=config['model']['heads'],
-                 schedule_lr=False,
-                 compile_model=config['model']['compile'],
-                 device=device
-                 )
+                                               embed_dim=config['model']['embed_dim'],
+                                               in_channels=emb_num_features,
+                                               hidden_channels=config['model']['hidden_channels'],
+                                               num_layers=config['model']['num_layers'],
+                                               lr=config['model']['lr'],
+                                               heads=config['model']['heads'],
+                                               schedule_lr=False,
+                                               compile_model=config['model']['compile'],
+                                               device=device
+                                               )
     return model, optimizer, scheduler
 
 

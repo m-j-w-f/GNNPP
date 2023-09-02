@@ -66,6 +66,7 @@ def train_model(config):
                                                    hidden_channels=config.hidden_channels,
                                                    num_layers=config.num_layers,
                                                    lr=lr,
+                                                   heads=config.heads,
                                                    schedule_lr=False,
                                                    compile_model=True,
                                                    device=device)
@@ -116,7 +117,7 @@ def train_model(config):
 
 
 if __name__ == '__main__':
-    small = True  # !TODO change here if the small or big dataset is used
+    small = False  # !TODO change here if the small or big dataset is used
     with wandb.init():
         # Set Device
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

@@ -46,6 +46,7 @@ def crps(mu_sigma: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     crps_score = crps_no_avg(mu_sigma=mu_sigma, y=y)
     return torch.mean(crps_score)
 
+
 class Convolution(torch.nn.Module):
     def __init__(self, in_channels, out_channels, hidden_channels, heads, num_layers: int = None):
         super(Convolution, self).__init__()
@@ -287,7 +288,7 @@ class GNNGI(torch.nn.Module):
 
         self.emb = EmbedStations(num_stations_max=535, embedding_dim=embedding_dim)
         self.pool = global_mean_pool
-        self.lin = Linear(out_channels,2)
+        self.lin = Linear(out_channels, 2)
         self.make_pos = MakePositive()
 
     def forward(self, x, edge_index, edge_attr, batch_id, global_feature=None):
@@ -360,7 +361,7 @@ def create_model(layer_type: str,
         mod = Sequential('x, edge_index, edge_attr, batch_id',
                          [
                              (EmbedStations(num_stations_max=535, embedding_dim=embed_dim), 'x -> x'),
-                             (ResGnn(in_channels=-1,
+                             (ResGnn(in_channels=in_channels,
                                      out_channels=2,
                                      hidden_channels=hidden_channels,
                                      heads=heads,

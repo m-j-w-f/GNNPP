@@ -117,7 +117,7 @@ def train_model(config):
 
 
 if __name__ == '__main__':
-    small = False  # !TODO change here if the small or big dataset is used
+    small = True  # !TODO change here if the small or big dataset is used
     with wandb.init():
         # Set Device
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

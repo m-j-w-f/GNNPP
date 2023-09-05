@@ -1,5 +1,5 @@
 import argparse
-
+import time
 import torch.cuda
 import yaml
 from torch_geometric.loader import DataLoader
@@ -53,6 +53,7 @@ def valid(model: torch.nn.Module, batch):
 
 
 def main():
+    start_time = time.time()
     # Suppress warning
     warnings.filterwarnings("ignore", category=UserWarning)
     # Argparse
@@ -110,7 +111,7 @@ def main():
     position_matrix = np.array(stations[['station', 'lon', 'lat']])
 
     torch_data = []
-    dates = data['date'].unique()[:-366]  # last 366 days are used for testing
+    dates = data['date'].unique()[:-367]  # last 366 days are used for testing
     for date in dates:
         torch_data.append(create_data(df=normalized_data,
                                       date=date,
@@ -130,7 +131,7 @@ def main():
 
     # Definition of train_loader and valid_loader
     train_loader = DataLoader(torch_data_train, batch_size=config['model']['batch_size'], shuffle=True)
-
+    len(f"Days to train on {train_loader.dataset}")
     # Model Creation
     # Number of Features
     num_features = torch_data[0].num_features
@@ -166,7 +167,8 @@ def main():
         'optimizer_state_dict': optimizer.state_dict(),
     }, f"{save_path}/checkpoints/model_{args.id}.pt")
 
-    print(f"Stopped {args.id}")
+    elapsed_time = time.time()-start_time
+    print(f"Model {args.id} trained in: {int(elapsed_time // 60)}min {int(elapsed_time % 60)}s ")
 
 
 if __name__ == '__main__':

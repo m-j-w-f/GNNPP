@@ -1,5 +1,7 @@
 import argparse
 import time
+
+import numpy as np
 import torch.cuda
 import yaml
 from torch_geometric.loader import DataLoader
@@ -8,6 +10,7 @@ import os
 import warnings
 from models import *
 from typing import Tuple, Optional
+from tqdm import trange
 
 sys.path.append('../utils')
 from helpers import load_data, load_stations, clean_data, normalize_data, create_data, compute_dist_matrix
@@ -124,10 +127,12 @@ def main():
 
     # Set device
     device = torch.device(f"cuda:{args.device}" if torch.cuda.is_available() else "cpu")
+    print(device)
 
     # Create Dataloader
     # Move all the data directly to the GPU (should fit into memory)
-    torch_data_train = [tensor.to(device) for tensor in torch_data]
+    #torch_data_train = [tensor.to(device) for tensor in torch_data]  # TODO Change
+    torch_data_train = torch_data
 
     # Definition of train_loader and valid_loader
     train_loader = DataLoader(torch_data_train, batch_size=config['model']['batch_size'], shuffle=True)
@@ -144,17 +149,22 @@ def main():
 
     # Train Loop
     train_losses = []
-
-    for epoch in range(config['training']['n_epochs']):
+    pbar = trange(config['training']['n_epochs'])
+    for epoch in pbar:
         # Train for one epoch
         model.train()
         train_loss = 0.0
         # Train loop
         for batch in train_loader:
+            batch.to(device)  # TODO remove
             loss = train(model, optimizer, batch)
             train_loss += loss.item() * batch.num_graphs
         train_loss /= len(train_loader.dataset)
         train_losses.append(train_loss)
+        pbar.set_postfix({"Train_Loss": train_loss})
+        if torch.isnan(loss).any():
+            print("Loss is NaN. Training terminated.")
+            sys.exit(1)
 
     # path
     save_path = os.path.dirname(args.config)

@@ -7,7 +7,7 @@ import numpy as np
 from typing import Tuple, Optional
 from torch_geometric.nn import Sequential, MessagePassing, GATv2Conv, GraphSAGE
 from torch_geometric.nn.pool import global_mean_pool
-from torch.nn import Linear, Embedding, ModuleList
+from torch.nn import Linear, Embedding, ModuleList, ReLU
 
 
 def crps_no_avg(mu_sigma: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
@@ -73,10 +73,11 @@ class Convolution(torch.nn.Module):
             self.convolutions.append(GATv2Conv(in_channels=-1, out_channels=c, heads=h))
         # Last Layer to match shape of output
         self.lin = Linear(in_features=hidden_channels[-1] * heads[-1], out_features=out_channels)
+        self.relu = ReLU()
 
     def forward(self, x: torch.Tensor, edge_index: torch.Tensor, edge_attr: torch.Tensor) -> torch.Tensor:
         for conv in self.convolutions:
-            x = F.relu(conv(x, edge_index, edge_attr))
+            x = self.relu(conv(x, edge_index, edge_attr))
         x = self.lin(x)
         return x
 
@@ -128,6 +129,7 @@ class ResGnn(torch.nn.Module):
             self.convolutions.append(GATv2Conv(-1, hidden_channels, heads=heads, edge_dim=1, add_self_loops=True,
                                                fill_value=0.01))  # TODO small positive or negative number can be tested
         self.lin = Linear(hidden_channels * heads, out_channels)
+        self.relu = ReLU()
 
     def forward(self, x: torch.Tensor, edge_index: torch.Tensor, edge_attr: torch.Tensor) -> torch.Tensor:
         x = x.float()
@@ -136,9 +138,9 @@ class ResGnn(torch.nn.Module):
             if i == 0:
                 # First Layer
                 x = conv(x, edge_index, edge_attr)
-                x = F.relu(x)
+                x = self.relu(x)
             else:
-                x = x + F.relu(conv(x, edge_index, edge_attr))  # Residual Layers
+                x = x + self.relu(conv(x, edge_index, edge_attr))  # Residual Layers
 
         x = self.lin(x)
         return x
@@ -170,13 +172,13 @@ class ResGnn(torch.nn.Module):
                 x, (edge_index_attention, attention_weights) = conv(x, edge_index, edge_attr,
                                                                     return_attention_weights=True)
                 attention_list.append(attention_weights)
-                x = F.relu(x)
+                x = self.relu(x)
                 x = self.norm(x)
             else:
                 x_conv, (edge_index_attention, attention_weights) = conv(x, edge_index, edge_attr,
                                                                          return_attention_weights=True)
                 attention_list.append(attention_weights)
-                x = x + F.relu(x_conv)  # Residual Layers
+                x = x + self.relu(x_conv)  # Residual Layers
         x = self.lin(x)
 
         # TODO Average the attention across all layers
@@ -197,6 +199,7 @@ class MPWGI(MessagePassing):
         self.W4 = Linear(2*in_channels + edge_channels + global_channels, hidden_channels)  # used in message
         self.W5 = Linear(hidden_channels + global_channels, global_out_channels)  # used for global features
         self.pool = global_mean_pool
+        self.relu = ReLU()
 
     def reset_parameters(self) -> None:
         """
@@ -277,6 +280,7 @@ class GNNGI(torch.nn.Module):
         :param embedding_dim: dimension to use of node embedding
         """
         super(GNNGI, self).__init__()
+        self.emb = EmbedStations(num_stations_max=535, embedding_dim=embedding_dim)
         self.convolutions = ModuleList()
 
         assert num_layers > 0, "num_layers must be greater than 0"
@@ -286,10 +290,10 @@ class GNNGI(torch.nn.Module):
             global_channels = global_out_channels  # same for global_channels
         self.convolutions.append(MPWGI(in_channels, edge_channels, global_channels, hidden_channels, out_channels, global_out_channels))  # Last Layer
 
-        self.emb = EmbedStations(num_stations_max=535, embedding_dim=embedding_dim)
         self.pool = global_mean_pool
         self.lin = Linear(out_channels, 2)
         self.make_pos = MakePositive()
+        self.relu = torch.nn.ReLU()
 
     def forward(self, x, edge_index, edge_attr, batch_id, global_feature=None):
         x = self.emb(x)  # embed station id
@@ -298,14 +302,14 @@ class GNNGI(torch.nn.Module):
             global_feature = self.pool(x, batch=batch_id)  # Do batch-wise pooling to create initial global feature
 
         x, global_feature = self.convolutions[0](x, edge_index, edge_attr, global_feature, batch_id)
-        x = F.relu(x)
-        global_feature = F.relu(global_feature)
+        x = self.relu(x)
+        global_feature = self.relu(global_feature)
 
         if len(self.convolutions) > 1:
             for conv in self.convolutions[1:]:
                 x_new, global_features_new = conv(x, edge_index, edge_attr, global_feature, batch_id)
-                x = x + F.relu(x_new)  # Resnet
-                global_feature = global_feature + F.relu(global_features_new)  #Resnet
+                x = x + self.relu(x_new)  # Resnet
+                global_feature = global_feature + self.relu(global_features_new)  #Resnet
 
         x = self.lin(x)
 

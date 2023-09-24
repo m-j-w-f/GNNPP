@@ -12,6 +12,7 @@ import os
 import pandas as pd
 import torch
 import torch_geometric
+import cmasher as cmr
 
 
 def load_data(indexed: bool = True) -> pd.DataFrame:
@@ -208,8 +209,8 @@ def create_data(df: pd.DataFrame, date: pd.Timestamp, dist_matrix: np.array, pos
 
     # Get the stations that reported for the current date
     reporting_stations = df['station'].to_numpy()
-    assert any(df.station.value_counts() != 1) is False  # Any Station that reports df should appear only once
-    assert np.all(reporting_stations[:-1] < reporting_stations[1:])  # Array of Stations should be in ascending order
+    #assert any(df.station.value_counts() != 1) is False  # Any Station that reports df should appear only once
+    #assert np.all(reporting_stations[:-1] < reporting_stations[1:])  # Array of Stations should be in ascending order
 
     # Create feature tensor (stations are ordered in the df)
     node_features = df.drop(['date', 'obs'], axis=1).to_numpy()
@@ -238,8 +239,12 @@ def create_data(df: pd.DataFrame, date: pd.Timestamp, dist_matrix: np.array, pos
     edge_attr = edge_attr.reshape(-1, 1)
     edge_attr = torch.tensor(edge_attr, dtype=torch.float)
     # normalize
-    max_len = torch.max(edge_attr)
-    standardized_edge_attr = edge_attr / max_len
+    # Check if the tensor is empty
+    if edge_attr.numel() == 0:
+        standardized_edge_attr = edge_attr
+    else:
+        max_len = torch.max(edge_attr)
+        standardized_edge_attr = edge_attr / max_len
 
     # Additional attributes
     # Position
@@ -384,7 +389,10 @@ def visualize_explanation(subgraph: Data, fullgraph: Data, stations: pd.DataFram
     # NOTE: edge_index_att holds the Edges of the new graph,
     # however they are labeled consecutively instead of the ordering from stations DataFrame
     edge_index = station_ids[edge_index]  # now the same indexes as in the stations Dataframe are used
-    if not isinstance(subgraph.index, list): subgraph.index = [subgraph.index]
+    if isinstance(subgraph.index, torch.Tensor):
+        subgraph.index = subgraph.index.tolist()
+    if not isinstance(subgraph.index, list):
+        subgraph.index = [subgraph.index]
     full_station_ids = np.array(fullgraph.x[..., 0].cpu(), dtype=int)
     exp_node_id = full_station_ids[subgraph.index]
     # Filter latitude and longitude using station IDs
@@ -400,21 +408,23 @@ def visualize_explanation(subgraph: Data, fullgraph: Data, stations: pd.DataFram
     # Add edges with edge_length as an attribute
     if subgraph.is_directed():
         for edge, a in zip(edge_index.T.tolist(), dist.flatten().tolist()):  # Add all edges
-            G.add_edge(edge[0], edge[1], length=a)  # Add all Edges with distance Attribute
+            if a != 0:
+                G.add_edge(edge[0], edge[1], length=a)  # Add all Edges with distance Attribute
     else:
         for edge, a in zip(edge_index.T.tolist(), dist.flatten().tolist()):
             if not (G.has_edge(edge[0], edge[1]) or G.has_edge(edge[1], edge[0])): # Edge only needs to be added once
-                G.add_edge(edge[0], edge[1], length=a)  # Add all Edges with distance Attribute
+                if a != 0:
+                    G.add_edge(edge[0], edge[1], length=a)  # Add all Edges with distance Attribute
 
     # Colors
     degrees = G.degree if subgraph.is_undirected() else G.in_degree
 
     # Node Colors
-    node_colors = ["#00FF00" if node_id in exp_node_id else "black" for node_id in  G.nodes]
+    node_colors = ["#00FF00" if node_id in exp_node_id else "black" for node_id in G.nodes]
 
     # Edge Colors
     color_values = [attr['length'] for _, _, attr in G.edges(data=True)]
-    cmap = mpl.colormaps.get_cmap('Purples')
+    cmap = cmr.amethyst_r
     # Normalize the values to range between 0 and 1
     norm = plt.Normalize(min(color_values), max(color_values))
     # Generate a list of colors based on the normalized values

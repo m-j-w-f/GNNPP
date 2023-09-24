@@ -1,0 +1,18 @@
+data:
+  max_dist: 1000
+  method: max_dist
+  nearest_k: 10
+  nearest_k_mode: in
+  use_corr: false
+model:
+  architecture: GlobalInfo
+  batch_size: 8
+  compile: false
+  embed_dim: 10
+  heads: 0
+  hidden_channels: 128
+  lr: 0.0025
+  num_layers: 3
+training:
+  n_epochs: 82
+  patience: 82

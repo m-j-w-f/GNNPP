@@ -1,0 +1,18 @@
+data:
+  max_dist: 100
+  method: max_dist
+  nearest_k: 0
+  nearest_k_mode: in
+  use_corr: false
+model:
+  architecture: ResGnn
+  batch_size: 8
+  compile: true
+  embed_dim: 10
+  heads: 1
+  hidden_channels: 256
+  lr: 0.001
+  num_layers: 1
+training:
+  n_epochs: 89
+  patience: 89

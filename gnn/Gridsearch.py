@@ -1,3 +1,4 @@
+#!!! Change flag in main if small or large dataset is used
 from models import *
 
 from typing import Tuple, Optional
@@ -117,7 +118,7 @@ def train_model(config):
 
 
 if __name__ == '__main__':
-    small = True  # !TODO change here if the small or big dataset is used
+    small = True  # !change here if the small or big dataset is used
     with wandb.init():
         # Set Device
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

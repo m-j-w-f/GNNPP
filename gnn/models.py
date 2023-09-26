@@ -127,7 +127,7 @@ class ResGnn(torch.nn.Module):
         self.convolutions = ModuleList()
         for _ in range(num_layers):
             self.convolutions.append(GATv2Conv(-1, hidden_channels, heads=heads, edge_dim=1, add_self_loops=True,
-                                               fill_value=0.01))  # TODO small positive or negative number can be tested
+                                               fill_value=0.01))
         self.lin = Linear(hidden_channels * heads, out_channels)
         self.relu = ReLU()
 
@@ -181,7 +181,7 @@ class ResGnn(torch.nn.Module):
                 x = x + self.relu(x_conv)  # Residual Layers
         x = self.lin(x)
 
-        # TODO Average the attention across all layers
+        # Attention weights of first layer
         attention_weights = attention_weights.mean(dim=1)
 
         return x, edge_index_attention, attention_weights
@@ -227,7 +227,6 @@ class MPWGI(MessagePassing):
         """
         message_input = torch.cat([x_i, x_j, edge_attr, global_features_i], dim=-1)
         message_transformed = self.W4(message_input)
-        # TODO does message_transformed hold all information on messages?
         return message_transformed
 
     def update(self, inputs: torch.Tensor, x: torch.Tensor, global_features: torch.Tensor) -> torch.Tensor:

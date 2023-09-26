@@ -131,7 +131,7 @@ def main():
 
     # Create Dataloader
     # Move all the data directly to the GPU (should fit into memory)
-    #torch_data_train = [tensor.to(device) for tensor in torch_data]  # TODO Change
+    #torch_data_train = [tensor.to(device) for tensor in torch_data]
     torch_data_train = torch_data
 
     # Definition of train_loader and valid_loader
@@ -156,7 +156,7 @@ def main():
         train_loss = 0.0
         # Train loop
         for batch in train_loader:
-            batch.to(device)  # TODO remove
+            batch.to(device)
             loss = train(model, optimizer, batch)
             train_loss += loss.item() * batch.num_graphs
         train_loss /= len(train_loader.dataset)
